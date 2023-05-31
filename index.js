@@ -51,18 +51,22 @@ let handleUserLeft=async(MemberId)=>{
 let handleMessageFromPeer = async (message, MemberId) => {
   message = await JSON.parse(message.text);
   console.log("message :", message);
-  if(message.type==='offer'){
-       createAnswer(MemberId,message.offer)
+  if (message.type === "offer") {
+    createAnswer(MemberId, message.offer);
   }
-  if(message.type==='answer'){
-       addAnswer(message.answer)
+  if (message.type === "answer") {
+    addAnswer(message.answer);
   }
-  if(message.type==='candidate'){
-       if(peerConnection){
-              peerConnection.addIceCandidate(message.candidate)
-       }
+  if (message.type === "candidate") {
+    if (peerConnection && peerConnection.remoteDescription) {
+      peerConnection.addIceCandidate(message.candidate);
+    } else {
+      // Store the candidate and add it later when the remote description is set
+      pendingCandidates.push(message.candidate);
+    }
   }
 };
+
 
 //now connecting peers to peers connection
 let handleUserJoined = async (MemberId) => {
@@ -120,19 +124,25 @@ let createOffer = async (MemberId) => {
   );
 };
 
-let createAnswer = async (MemberId,offer) => {
-       await createPeerConnections(MemberId)
-      
-       await peerConnection.setRemoteDescription(offer)
+let createAnswer = async (MemberId, offer) => {
+  await createPeerConnections(MemberId);
+  await peerConnection.setRemoteDescription(offer);
 
-       let answer= await peerConnection.createAnswer()
-       await peerConnection.setLocalDescription(answer) 
+  let answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
 
-       client.sendMessageToPeer(
-              { text: JSON.stringify({ type: "answer", 'answer': answer }) },
-              MemberId
-            );
+  client.sendMessageToPeer(
+    { text: JSON.stringify({ type: "answer", answer: answer }) },
+    MemberId
+  );
+
+  // Add any pending ICE candidates after the remote description is set
+  for (const candidate of pendingCandidates) {
+    peerConnection.addIceCandidate(candidate);
+  }
+  pendingCandidates = [];
 };
+
 let addAnswer=async(answer)=>{
  if(!peerConnection.currentRemoteDescription){
        peerConnection.setRemoteDescription(answer)
