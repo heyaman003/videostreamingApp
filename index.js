@@ -7,7 +7,7 @@ let channel;
 let queryString=window.location.search
 let urlParams=new URLSearchParams(queryString)
 let roomId=urlParams.get('room')
-
+let pendingCandidates = [];
 if(!roomId){
     window.location='lobby.html'   
 }
